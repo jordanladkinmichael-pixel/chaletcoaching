@@ -18,7 +18,7 @@ function Card({ children }: { children: React.ReactNode }) {
 
 export default function FAQPage() {
   // Состояние для валюты
-  const [region, setRegion] = React.useState<"EU" | "UK">("EU");
+  const [region, setRegion] = React.useState<"EU" | "UK" | "US">("EU");
   
   const faqs = [
     {

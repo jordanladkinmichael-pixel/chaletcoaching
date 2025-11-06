@@ -22,7 +22,7 @@ function Card({ children }: { children: React.ReactNode }) {
 
 export default function GlutePowerPage() {
   // Состояние для валюты
-  const [region, setRegion] = React.useState<"EU" | "UK">("EU");
+  const [region, setRegion] = React.useState<"EU" | "UK" | "US">("EU");
   
   // Функции для хедера
   const handleOpenAuth = (mode: "signin" | "signup") => {

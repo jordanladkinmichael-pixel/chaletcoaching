@@ -35,7 +35,7 @@ function GhostButton({ children, className = "", disabled = false }: { children:
 
 export default function BlogPage() {
   // Состояние для валюты
-  const [region, setRegion] = React.useState<"EU" | "UK">("EU");
+  const [region, setRegion] = React.useState<"EU" | "UK" | "US">("EU");
   
   // Функции для хедера
   const handleOpenAuth = (mode: "signin" | "signup") => {

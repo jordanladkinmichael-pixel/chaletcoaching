@@ -20,7 +20,7 @@ export default function ContactPage() {
   const isAuthed = !!session?.user;
   const [balance, setBalance] = React.useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = React.useState(true);
-  const [region, setRegion] = React.useState<"EU" | "UK">("EU");
+  const [region, setRegion] = React.useState<"EU" | "UK" | "US">("EU");
   const [toasts, setToasts] = React.useState<Toast[]>([]);
 
   const addToast = (
