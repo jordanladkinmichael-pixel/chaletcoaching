@@ -8,7 +8,7 @@ import { formatNumber as formatNumberLocal } from "@/lib/tokens";
 import { Skeleton } from "@/components/ui";
 import Image from "next/image";
 
-type Region = "EU" | "UK";
+type Region = "EU" | "UK" | "US";
 
 function cn(...cls: Array<string | false | undefined>) {
   return cls.filter(Boolean).join(" ");
@@ -21,17 +21,23 @@ function RegionToggle({
   region: Region;
   onChange: (r: Region) => void;
 }) {
+  const regions: Array<{ value: Region; label: string }> = [
+    { value: "UK", label: "GBP" },
+    { value: "EU", label: "EUR" },
+    { value: "US", label: "USD" },
+  ];
+
   return (
     <div className="inline-flex rounded-lg overflow-hidden border"
          style={{ borderColor: THEME.cardBorder }}>
-      {(["UK", "EU"] as const).map((r) => (
+      {regions.map((r) => (
         <button
-          key={r}
-          onClick={() => onChange(r)}
-          className={cn("px-3 py-2 text-xs md:text-sm font-medium", region === r ? "font-semibold" : "opacity-60")}
-          style={{ background: region === r ? THEME.accent : "transparent", color: region === r ? "#0E0E10" : THEME.text }}
+          key={r.value}
+          onClick={() => onChange(r.value)}
+          className={cn("px-3 py-2 text-xs md:text-sm font-medium", region === r.value ? "font-semibold" : "opacity-60")}
+          style={{ background: region === r.value ? THEME.accent : "transparent", color: region === r.value ? "#0E0E10" : THEME.text }}
         >
-          {r === "EU" ? "EUR" : "GBP"}
+          {r.label}
         </button>
       ))}
     </div>

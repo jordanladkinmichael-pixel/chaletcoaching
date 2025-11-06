@@ -53,10 +53,6 @@ export const TOKEN_PACKAGES = {
     },
 } as const;
 
-export function getPackagePrice(id: keyof typeof TOKEN_PACKAGES, currency: Currency) {
-    return TOKEN_PACKAGES[id].price;
-}
-
 export type TokenPackageId = keyof typeof TOKEN_PACKAGES;
 
 // Валюты
@@ -68,8 +64,23 @@ export const SUPPORTED_CURRENCIES = {
 
 export type Currency = keyof typeof SUPPORTED_CURRENCIES;
 
-// Курс конвертации
-const CONVERSION_RATE = 1.15; // 1 GBP = 1.15 EUR
+// Курсы конвертации (базовая валюта - GBP)
+const CONVERSION_RATE_EUR = 1.15; // 1 GBP = 1.15 EUR
+const CONVERSION_RATE_USD = 1.25; // 1 GBP = 1.25 USD
+
+export function getPackagePrice(id: keyof typeof TOKEN_PACKAGES, currency: Currency): number {
+    const basePrice = TOKEN_PACKAGES[id].price;
+    
+    if (currency === 'GBP') {
+        return basePrice;
+    } else if (currency === 'EUR') {
+        return Math.round(basePrice * CONVERSION_RATE_EUR * 100) / 100;
+    } else if (currency === 'USD') {
+        return Math.round(basePrice * CONVERSION_RATE_USD * 100) / 100;
+    }
+    
+    return basePrice;
+}
 
 // Утилиты для работы с пакетами
 export function getTokenPackage(id: TokenPackageId) {

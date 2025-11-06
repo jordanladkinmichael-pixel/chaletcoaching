@@ -56,7 +56,7 @@ function downloadCSV(filename: string, rows: Array<Record<string, unknown>>) {
   URL.revokeObjectURL(url);
 }
 
-type Region = "EU" | "UK";
+type Region = "EU" | "UK" | "US";
 
 type NavItem = {
   id: NavId;
@@ -227,27 +227,41 @@ type Tier = {
 // File: `app/page.tsx` (updated Pricing function)
 function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCustomTopUp, onTierBuy, loading }: PricingProps) {
     const router = useRouter();
-    const isUK = region === "UK";
-    const symbol = isUK ? "£" : "€";
-    const conversionRate = 1.15; // 1 GBP = 1.15 EUR
-
+    const { symbol, unitLabel } = currencyForRegion(region);
+    
+    // Курсы конвертации (базовая валюта - GBP)
+    const CONVERSION_RATE_EUR = 1.15; // 1 GBP = 1.15 EUR
+    const CONVERSION_RATE_USD = 1.25; // 1 GBP = 1.25 USD
+    
+    // Определяем курс для текущей валюты
+    const getConversionRate = () => {
+        if (region === "UK") return 1;
+        if (region === "EU") return CONVERSION_RATE_EUR;
+        return CONVERSION_RATE_USD; // US
+    };
+    
+    const conversionRate = getConversionRate();
+    
+    // Базовые цены в GBP
+    const basePrices = { Starter: 9, Builder: 19, Pro: 49 };
+    
     const tiers: Tier[] = [
         {
             name: "Starter",
-            price: isUK ? 9 : Math.round(9 * conversionRate * 100) / 100,
+            price: region === "UK" ? basePrices.Starter : Math.round(basePrices.Starter * conversionRate * 100) / 100,
             tokens: 1000,
             tag: "Try & explore"
         },
         {
             name: "Builder",
-            price: isUK ? 19 : Math.round(19 * conversionRate * 100) / 100,
+            price: region === "UK" ? basePrices.Builder : Math.round(basePrices.Builder * conversionRate * 100) / 100,
             tokens: 2575,
             tag: "Most popular",
             bonus: "+3%"
         },
         {
             name: "Pro",
-            price: isUK ? 49 : Math.round(49 * conversionRate * 100) / 100,
+            price: region === "UK" ? basePrices.Pro : Math.round(basePrices.Pro * conversionRate * 100) / 100,
             tokens: 6600,
             tag: "Best value",
             bonus: "+10%"
@@ -256,7 +270,8 @@ function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCus
 
     const [custom, setCustom] = useState<string>("25.00");
     const customNumber = Number(custom.replace(",", "."));
-    const customPriceInGBP = isUK ? customNumber : customNumber / conversionRate;
+    // Конвертируем введенную сумму в GBP для расчета токенов
+    const customPriceInGBP = region === "UK" ? customNumber : customNumber / conversionRate;
     const customTokens = Math.max(0, Math.round(customPriceInGBP * TOKENS_PER_UNIT));
     const approxWeeks = tokensToApproxWeeks(customTokens);
 
@@ -271,6 +286,12 @@ function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCus
         }
     };
 
+    const getCountryCode = () => {
+        if (region === "UK") return "GB";
+        if (region === "EU") return "DE"; // Используем DE как пример для EU
+        return "US"; // US
+    };
+
     const handleBuy = async (tier: Tier) => {
         if (_requireAuth) return _openAuth("signup");
         setCreating(tier.name);
@@ -283,7 +304,7 @@ function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCus
                     amount: Number(tier.price),
                     fullName: "Digital Brain User", // можна підставити з контексту юзера
                     email: "client@example.com",
-                    country: "GB",
+                    country: getCountryCode(),
                 }),
             });
 
@@ -317,7 +338,7 @@ function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCus
                     amount: customNumber,
                     fullName: "Digital Brain User",
                     email: "client@example.com",
-                    country: "GB",
+                    country: getCountryCode(),
                 }),
             });
 
@@ -382,7 +403,7 @@ function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCus
 
                 <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                     <div>
-                        <label className="text-sm opacity-80">Amount ({isUK ? "GBP" : "EUR"})</label>
+                        <label className="text-sm opacity-80">Amount ({unitLabel})</label>
                         <div className="mt-1 flex items-center gap-2">
                             <span className="rounded-lg border px-3 py-2" style={{ borderColor: THEME.cardBorder }}>{symbol}</span>
                             <input

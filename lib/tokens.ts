@@ -190,8 +190,14 @@ export function tokensToApproxWeeks(tokens: number) {
   return Math.floor((tokens / BASELINE_TOKENS) * 4);
 }
 
-export function currencyForRegion(region: "EU" | "UK") {
-  return { symbol: region === "UK" ? "£" : "€", unitLabel: region === "UK" ? "GBP" : "EUR" };
+export function currencyForRegion(region: "EU" | "UK" | "US") {
+  if (region === "UK") {
+    return { symbol: "£", unitLabel: "GBP" };
+  } else if (region === "EU") {
+    return { symbol: "€", unitLabel: "EUR" };
+  } else {
+    return { symbol: "$", unitLabel: "USD" };
+  }
 }
 
 // Функция для генерации осмысленных названий курсов
