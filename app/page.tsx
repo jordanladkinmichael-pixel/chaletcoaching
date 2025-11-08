@@ -278,6 +278,14 @@ function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCus
     // new: track which action is creating (tier name or "custom")
     const [creating, setCreating] = useState<string | null>(null);
 
+    // Terms acceptance state for each plan (only for authenticated users)
+    const [termsAccepted, setTermsAccepted] = useState<Record<string, boolean>>({
+        Starter: false,
+        Builder: false,
+        Pro: false,
+        Custom: false,
+    });
+
     const saveAndGoToCheckout = (planObj: { name: string; price: number | string; currency: string; tokens?: number }) => {
         try {
             localStorage.setItem("selectedPlan", JSON.stringify(planObj));
@@ -381,9 +389,33 @@ function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCus
                         <li className="flex items-center gap-2"><FileDown size={16}/> PDF export</li>
                     </ul>
 
+                    {/* Terms checkbox - only for authenticated users */}
+                    {!_requireAuth && (
+                        <label className="flex items-center gap-2 cursor-pointer text-sm mt-4 mb-2">
+                            <input
+                                type="checkbox"
+                                checked={termsAccepted[t.name]}
+                                onChange={(e) => setTermsAccepted({...termsAccepted, [t.name]: e.target.checked})}
+                                className="rounded"
+                            />
+                            <span className="opacity-85">
+                                I agree to the{' '}
+                                <a 
+                                    href="/legal/terms" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="underline hover:opacity-100 transition-opacity"
+                                    style={{ color: THEME.accent }}
+                                >
+                                    Terms and Conditions
+                                </a>
+                            </span>
+                        </label>
+                    )}
+
                     <AccentButton
                         className="mt-5 w-full"
-                        disabled={!!loading || !!creating}
+                        disabled={!!loading || !!creating || (!_requireAuth && !termsAccepted[t.name])}
                         onClick={() => void handleBuy(t)}
                     >
                         {_requireAuth ? (
@@ -424,9 +456,35 @@ function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCus
                         <div className="text-sm mt-1 opacity-90">≈ {approxWeeks} weeks (baseline)</div>
                     </div>
 
+                    {/* Terms checkbox for Custom - only for authenticated users */}
+                    {!_requireAuth && (
+                        <div className="md:col-span-2">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm mt-3 mb-2">
+                                <input
+                                    type="checkbox"
+                                    checked={termsAccepted.Custom}
+                                    onChange={(e) => setTermsAccepted({...termsAccepted, Custom: e.target.checked})}
+                                    className="rounded"
+                                />
+                                <span className="opacity-85">
+                                    I agree to the{' '}
+                                    <a 
+                                        href="/legal/terms" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="underline hover:opacity-100 transition-opacity"
+                                        style={{ color: THEME.accent }}
+                                    >
+                                        Terms and Conditions
+                                    </a>
+                                </span>
+                            </label>
+                        </div>
+                    )}
+
                     <AccentButton
                         className="w-full md:w-auto"
-                        disabled={!!loading || !!creating || !(customNumber > 0)}
+                        disabled={!!loading || !!creating || !(customNumber > 0) || (!_requireAuth && !termsAccepted.Custom)}
                         onClick={() => void handleCustom()}
                     >
                         {_requireAuth ? (
