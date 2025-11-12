@@ -226,23 +226,23 @@ type Tier = {
 // File: `app/page.tsx` (updated Pricing function)
 function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCustomTopUp: _onCustomTopUp, onTierBuy: _onTierBuy, loading }: PricingProps) {
     const { symbol, unitLabel } = currencyForRegion(region);
-    
+
     // Курсы конвертации (базовая валюта - EUR)
     const CONVERSION_RATE_USD = 1.087; // 1 EUR = 1.087 USD
     const CONVERSION_RATE_GBP = 1 / 1.15; // 1 EUR = 0.87 GBP (для обратной совместимости)
-    
+
     // Определяем курс для текущей валюты
     const getConversionRate = () => {
         if (region === "EU") return 1; // EUR - базовая валюта
         if (region === "US") return CONVERSION_RATE_USD; // USD
         return CONVERSION_RATE_GBP; // UK (для обратной совместимости)
     };
-    
+
     const conversionRate = getConversionRate();
-    
+
     // Базовые цены в EUR
     const basePrices = { Starter: 10, Builder: 20, Pro: 49 };
-    
+
     const tiers: Tier[] = [
         {
             name: "Starter",
@@ -284,7 +284,9 @@ function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCus
         Custom: false,
     });
 
-    // Removed unused saveAndGoToCheckout function
+    // Визначаємо валюту та позначення
+    const currencyCode = region === "US" ? "USD" : region === "UK" ? "GBP" : "EUR";
+    const currencyLabel = region === "US" ? "US Dollar" : region === "UK" ? "British Pound" : "Euro";
 
     const getCountryCode = () => {
         if (region === "UK") return "GB";
@@ -305,6 +307,7 @@ function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCus
                     fullName: "Digital Brain User", // можна підставити з контексту юзера
                     email: "client@example.com",
                     country: getCountryCode(),
+                    currency: currencyCode,
                 }),
             });
 
@@ -339,6 +342,7 @@ function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCus
                     fullName: "Digital Brain User",
                     email: "client@example.com",
                     country: getCountryCode(),
+                    currency: currencyCode,
                 }),
             });
 
