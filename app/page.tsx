@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import {
   Dumbbell, Wallet, Sparkles, ShieldAlert, Timer, FileDown, ArrowRight, ChevronRight, Settings2,
   Video, Image as ImageIcon, Info, Lock, LogIn, UserPlus, X, ChevronLeft, Mail, Quote,
@@ -225,8 +224,7 @@ type Tier = {
 
 
 // File: `app/page.tsx` (updated Pricing function)
-function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCustomTopUp, onTierBuy, loading }: PricingProps) {
-    const router = useRouter();
+function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCustomTopUp: _onCustomTopUp, onTierBuy: _onTierBuy, loading }: PricingProps) {
     const { symbol, unitLabel } = currencyForRegion(region);
     
     // Курсы конвертации (базовая валюта - EUR)
@@ -286,13 +284,7 @@ function Pricing({ region, requireAuth: _requireAuth, openAuth: _openAuth, onCus
         Custom: false,
     });
 
-    const saveAndGoToCheckout = (planObj: { name: string; price: number | string; currency: string; tokens?: number }) => {
-        try {
-            localStorage.setItem("selectedPlan", JSON.stringify(planObj));
-        } catch {
-            // ignore storage errors
-        }
-    };
+    // Removed unused saveAndGoToCheckout function
 
     const getCountryCode = () => {
         if (region === "UK") return "GB";

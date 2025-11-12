@@ -72,7 +72,7 @@ export async function POST(req: Request) {
         }
 
         // Atomic create transaction + increment user.tokens
-        const [createdTx, updatedUser] = await prisma.$transaction([
+        const [, updatedUser] = await prisma.$transaction([
             prisma.transaction.create({
                 data: {
                     userId,

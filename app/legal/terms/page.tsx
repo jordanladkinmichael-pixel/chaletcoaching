@@ -17,20 +17,7 @@ function Card({ children }: { children: React.ReactNode }) {
 }
 
 function BaselineConversion({ region }: { region: "EU" | "UK" | "US" }) {
-  const { symbol, unitLabel } = currencyForRegion(region);
-  // Цена за 100 токенов: 1.00 EUR = 100 токенов, 1.00 USD = 100/1.087 ≈ 92 токенов
-  // Но по заданию: 1.00 EUR/USD = 100.00 tokens
-  // Для USD: если 1 EUR = 1.087 USD, то 1 USD = 0.92 EUR, значит 1 USD = 92 токенов
-  // Но пользователь хочет, чтобы показывалось 1.00 USD = 100 токенов
-  // Значит нужно показать эквивалентную цену
-  
-  // Для EUR: 1.00 EUR = 100 токенов
-  // Для USD: нужно показать эквивалентную цену, чтобы 100 токенов стоили правильную сумму в USD
-  // Если 1 EUR = 100 токенов, и 1 EUR = 1.087 USD, то 100 токенов = 1.087 USD
-  // Но пользователь хочет видеть "1.00 USD = 100 токенов", значит нужно показать правильную цену
-  
-  // Правильная логика: показываем цену за 100 токенов в выбранной валюте
-  const priceFor100Tokens = region === "EU" ? 1.00 : region === "US" ? 1.09 : 0.87;
+  const { unitLabel } = currencyForRegion(region);
   
   return (
     <span>
@@ -41,19 +28,11 @@ function BaselineConversion({ region }: { region: "EU" | "UK" | "US" }) {
 
 export default function TermsPage() {
   // Используем контекст для синхронизации с хедером
-  let currentRegion: "EU" | "UK" | "US" = "EU";
-  try {
-    const { region } = useRegion();
-    currentRegion = region;
-  } catch {
-    // Если контекст недоступен, используем дефолт
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("selectedRegion");
-      if (stored && (stored === "EU" || stored === "US")) {
-        currentRegion = stored as "EU" | "US";
-      }
-    }
-  }
+  // Хук должен вызываться безусловно на верхнем уровне
+  const { region: contextRegion } = useRegion();
+  
+  // Используем region из контекста, с fallback на дефолт
+  const currentRegion: "EU" | "UK" | "US" = contextRegion || "EU";
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 space-y-8" style={{ color: THEME.text }}>
       <header className="space-y-2">
