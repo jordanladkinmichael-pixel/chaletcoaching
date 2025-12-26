@@ -1,11 +1,17 @@
 {
   "functions": {
-    "app/api/courses/generate-pdf/route.ts": {
+    "app/api/inngest/route.ts": {
       "maxDuration": 300
     }
   },
   "env": {
   },
   "buildCommand": "npm run build",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "rewrites": [
+    {
+      "source": "/api/inngest",
+      "destination": "/api/inngest"
+    }
+  ]
 }
