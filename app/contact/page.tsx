@@ -1,148 +1,383 @@
 "use client";
 
-import SiteFooter from "@/components/site-footer";
+import React, { useState, useEffect } from "react";
+import { useSession, signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { Mail, Phone, MapPin, Copy, Check } from "lucide-react";
 import SiteHeader from "@/components/site-header";
+import SiteFooter from "@/components/site-footer";
 import {
+  Container,
+  H1,
+  H2,
+  Paragraph,
+  Button,
+  Card,
   ToastContainer,
   type Toast,
   type ToastType,
 } from "@/components/ui";
+import { useCurrencyStore } from "@/lib/stores/currency-store";
+import { fadeIn, cardHoverLift } from "@/lib/animations";
 import { THEME } from "@/lib/theme";
-import { Building2, Mail, MapPin, Phone } from "lucide-react";
-import { useSession } from "next-auth/react";
-import Link from "next/link";
-import * as React from "react";
 import ContactForm from "./ContactForm";
 
+type Region = "EU" | "UK" | "US";
 
 export default function ContactPage() {
   const { data: session } = useSession();
-  const isAuthed = !!session?.user;
-  const [balance, setBalance] = React.useState<number | null>(null);
-  const [balanceLoading, setBalanceLoading] = React.useState(true);
-  const [region, setRegion] = React.useState<"EU" | "UK" | "US">("EU");
-  const [toasts, setToasts] = React.useState<Toast[]>([]);
+  const router = useRouter();
+  const { currency } = useCurrencyStore();
+  const [balance, setBalance] = useState(0);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [copiedAddress, setCopiedAddress] = useState(false);
 
-  const addToast = (
-    type: ToastType,
-    title: string,
-    message?: string,
-    duration?: number
-  ) => {
+  // Determine region from currency
+  const region: Region = currency === "USD" ? "US" : currency === "GBP" ? "UK" : "EU";
+
+  const isAuthed = !!session?.user;
+
+  // Check for reduced motion preference
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setPrefersReducedMotion(mediaQuery.matches);
+    const handleChange = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  // Load balance
+  useEffect(() => {
+    async function load() {
+      if (!isAuthed) {
+        setBalance(0);
+        return;
+      }
+      setBalanceLoading(true);
+      try {
+        const res = await fetch("/api/tokens/balance");
+        if (!res.ok) {
+          setBalance(0);
+          return;
+        }
+        const data: { balance?: number } = await res.json();
+        setBalance(data.balance ?? 0);
+      } catch {
+        setBalance(0);
+      } finally {
+        setBalanceLoading(false);
+      }
+    }
+    void load();
+  }, [isAuthed]);
+
+  // Auth handler
+  const openAuth = (mode?: "signup" | "signin") => {
+    void signIn("credentials", { callbackUrl: "/contact" });
+  };
+
+  // Navigation handler
+  const handleNavigate = (page: string) => {
+    if (page === "home") {
+      router.push("/");
+    } else if (page === "dashboard") {
+      router.push("/dashboard");
+    } else if (page === "generator") {
+      router.push("/generator");
+    } else if (page === "coaches") {
+      router.push("/coaches");
+    } else if (page === "pricing") {
+      router.push("/pricing");
+    } else if (page === "contact") {
+      router.push("/contact");
+    } else if (page === "how-it-works") {
+      router.push("/how-it-works");
+    } else if (page === "what-you-receive") {
+      router.push("/what-you-receive");
+    } else if (page === "trust-safety") {
+      router.push("/trust-safety");
+    } else if (page === "payments-tokens") {
+      router.push("/payments-tokens");
+    } else if (page === "support") {
+      router.push("/support");
+    } else if (page === "faq") {
+      router.push("/faq");
+    } else if (page === "about") {
+      router.push("/about");
+    } else {
+      router.push(`/${page}`);
+    }
+  };
+
+  // Format number helper
+  const formatNumber = (n: number) => n.toLocaleString();
+
+  // Region setter
+  const setRegion = (newRegion: Region) => {
+    const currencyMap: Record<Region, "EUR" | "GBP" | "USD"> = {
+      EU: "EUR",
+      UK: "GBP",
+      US: "USD",
+    };
+    useCurrencyStore.getState().setCurrency(currencyMap[newRegion]);
+  };
+
+  // Toast helpers
+  const addToast = (type: ToastType, title: string, message?: string, duration?: number) => {
     const id = Math.random().toString(36).substr(2, 9);
-    setToasts((toasts) => [...toasts, { id, type, title, message, duration }]);
+    setToasts((prev) => [...prev, { id, type, title, message, duration }]);
   };
 
   const removeToast = (id: string) => {
-    setToasts((toasts) => toasts.filter((t) => t.id !== id));
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const handleOpenAuth = (mode: "signin" | "signup") => {
-    console.log("Open auth:", mode);
-  };
-
-  const handleNavigate = (page: string) => {
-    if (page === "home") {
-      window.location.href = "/";
-    } else {
-      window.location.href = `/#${page}`;
+  // Copy address to clipboard
+  const copyAddress = async () => {
+    const address = "20 Wenlock Road, London, England, N1 7GU";
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(true);
+      addToast("success", "Copied", undefined, 2000);
+      setTimeout(() => setCopiedAddress(false), 2000);
+    } catch (err) {
+      addToast("error", "Failed to copy", "Please try again", 3000);
     }
   };
 
-  React.useEffect(() => {
-    if (isAuthed) {
-      setBalanceLoading(true);
-      fetch("/api/tokens/balance")
-        .then((res) => res.json())
-        .then((data) => {
-          setBalance(data.balance);
-        })
-        .catch((error) => {
-          console.error("Error fetching balance:", error);
-          addToast("error", "Error", "Could not fetch token balance.");
-        })
-        .finally(() => {
-          setBalanceLoading(false);
-        });
-    }
-  }, [isAuthed]);
+  // Animation variants
+  const sectionVariants = prefersReducedMotion
+    ? fadeIn
+    : {
+        hidden: { opacity: 0, y: 8 },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.18, ease: [0.2, 0.8, 0.2, 1] },
+        },
+      };
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col bg-bg text-text">
       <SiteHeader
-        onOpenAuth={handleOpenAuth}
+        onOpenAuth={openAuth}
         onNavigate={handleNavigate}
-        region={region}
-        setRegion={setRegion}
         balance={balance}
         balanceLoading={balanceLoading}
+        formatNumber={formatNumber}
+        region={region}
+        setRegion={setRegion}
       />
 
-      <main className="mx-auto max-w-5xl px-4 py-10 md:py-14">
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-          Contact Us
-        </h1>
-        <p className="mt-2 opacity-80">
-          Questions, feedback, or partnership ideas? Send us a message — we usually reply within 1–2 business days.
-        </p>
+      <main className="flex-1">
+        {/* Hero */}
+        <section className="py-12 md:py-16">
+          <Container>
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={sectionVariants}
+              className="space-y-6"
+            >
+              <div className="text-center space-y-4 max-w-3xl mx-auto">
+                <H1>Contact us</H1>
+                <Paragraph className="text-lg">
+                  Need help with tokens, coach requests, or Instant AI? We're here to help.
+                </Paragraph>
+              </div>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
-          {/* Left: company info */}
-          <section
-            className="rounded-2xl border p-5 md:p-6"
-            style={{ background: THEME.card, borderColor: THEME.cardBorder }}
-          >
-            <h2 className="text-xl font-semibold">Company</h2>
-
-            <ul className="mt-4 space-y-3 text-sm">
-              <li className="flex items-start gap-3">
-                <Building2 size={18} style={{ color: THEME.accent }} />
-                <div>
-                  <div className="font-medium">BREATHE FRESH LTD</div>
-                  <div className="opacity-80">Company number 15954655</div>
-                </div>
-              </li>
-
-              <li className="flex items-start gap-3">
-                <MapPin size={18} style={{ color: THEME.accent }} />
-                <div className="opacity-90">
-                  12 King Street, Nottingham, England, NG1 2AS
-                </div>
-              </li>
-
-              <li className="flex items-start gap-3">
-                <Mail size={18} style={{ color: THEME.accent }} />
-                <Link href="mailto:info@aifitworld.co.uk" className="underline">
-                  info@aifitworld.co.uk
+              <div className="flex flex-wrap justify-center gap-4 text-sm">
+                <Link
+                  href="/support"
+                  className="opacity-70 hover:opacity-100 transition-opacity underline"
+                >
+                  Support
                 </Link>
-              </li>
-
-              <li className="flex items-start gap-3">
-                <Phone size={18} style={{ color: THEME.accent }} />
-                <Link href="tel:+447418604319" className="underline">
-                  +44 7418 604319
+                <Link
+                  href="/faq"
+                  className="opacity-70 hover:opacity-100 transition-opacity underline"
+                >
+                  FAQ
                 </Link>
-              </li>
-            </ul>
+                <Link
+                  href="/payments-tokens"
+                  className="opacity-70 hover:opacity-100 transition-opacity underline"
+                >
+                  Payments & tokens
+                </Link>
+              </div>
+            </motion.div>
+          </Container>
+        </section>
 
-            <div className="mt-6 text-xs opacity-70">
-              Prefer email? Write to us directly and include any relevant screenshots or order IDs.
-            </div>
-          </section>
+        {/* Contact methods */}
+        <section className="py-12 md:py-16">
+          <Container>
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={sectionVariants}
+            >
+              <H2 className="mb-8 text-center">Contact details</H2>
+              <div className="grid md:grid-cols-3 gap-6">
+                {/* Email */}
+                <motion.div
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true }}
+                  variants={prefersReducedMotion ? fadeIn : cardHoverLift}
+                  whileHover={prefersReducedMotion ? undefined : { y: -2 }}
+                >
+                  <Card className="h-full flex flex-col">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: `${THEME.accent}20` }}
+                      >
+                        <Mail className="w-6 h-6" style={{ color: THEME.accent }} />
+                      </div>
+                      <H2 className="text-xl">Email</H2>
+                    </div>
+                    <Paragraph className="mb-4 flex-1">
+                      info@chaletcoaching.co.uk
+                    </Paragraph>
+                    <Button variant="outline" asChild>
+                      <Link href="mailto:info@chaletcoaching.co.uk">Send email</Link>
+                    </Button>
+                  </Card>
+                </motion.div>
 
-          {/* Right: contact form */}
-          <section
-            className="rounded-2xl border p-5 md:p-6"
-            style={{ background: THEME.card, borderColor: THEME.cardBorder }}
-          >
-            <h2 className="text-xl font-semibold">Send a message</h2>
-            <ContactForm />
-          </section>
-        </div>
+                {/* Phone */}
+                <motion.div
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true }}
+                  variants={prefersReducedMotion ? fadeIn : cardHoverLift}
+                  whileHover={prefersReducedMotion ? undefined : { y: -2 }}
+                >
+                  <Card className="h-full flex flex-col">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: `${THEME.accent}20` }}
+                      >
+                        <Phone className="w-6 h-6" style={{ color: THEME.accent }} />
+                      </div>
+                      <H2 className="text-xl">Phone</H2>
+                    </div>
+                    <Paragraph className="mb-4 flex-1">
+                      +44 7441 392840
+                    </Paragraph>
+                    <Button variant="outline" asChild>
+                      <Link href="tel:+447441392840">Call</Link>
+                    </Button>
+                  </Card>
+                </motion.div>
+
+                {/* Company address */}
+                <motion.div
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true }}
+                  variants={prefersReducedMotion ? fadeIn : cardHoverLift}
+                  whileHover={prefersReducedMotion ? undefined : { y: -2 }}
+                >
+                  <Card className="h-full flex flex-col">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: `${THEME.accent}20` }}
+                      >
+                        <MapPin className="w-6 h-6" style={{ color: THEME.accent }} />
+                      </div>
+                      <H2 className="text-xl">Company address</H2>
+                    </div>
+                    <Paragraph className="mb-4 flex-1">
+                      20 Wenlock Road, London, England, N1 7GU
+                    </Paragraph>
+                    <Button
+                      variant="outline"
+                      onClick={copyAddress}
+                      className="flex items-center justify-center gap-2"
+                    >
+                      {copiedAddress ? (
+                        <>
+                          <Check className="w-4 h-4" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          Copy address
+                        </>
+                      )}
+                    </Button>
+                  </Card>
+                </motion.div>
+              </div>
+            </motion.div>
+          </Container>
+        </section>
+
+        {/* Contact form */}
+        <section className="py-12 md:py-16">
+          <Container>
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={sectionVariants}
+            >
+              <div className="max-w-2xl mx-auto">
+                <H2 className="mb-6 text-center">Send a message</H2>
+                <Card>
+                  <ContactForm />
+                </Card>
+              </div>
+            </motion.div>
+          </Container>
+        </section>
+
+        {/* Before you send */}
+        <section className="py-12 md:py-16">
+          <Container>
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={sectionVariants}
+              className="max-w-2xl mx-auto"
+            >
+              <H2 className="mb-6 text-center">Before you send</H2>
+              <Card>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent font-semibold flex-shrink-0 mt-0.5">•</span>
+                    <Paragraph className="mb-0">Describe what you were trying to do</Paragraph>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent font-semibold flex-shrink-0 mt-0.5">•</span>
+                    <Paragraph className="mb-0">Include any error message</Paragraph>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent font-semibold flex-shrink-0 mt-0.5">•</span>
+                    <Paragraph className="mb-0">Add screenshots if possible</Paragraph>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent font-semibold flex-shrink-0 mt-0.5">•</span>
+                    <Paragraph className="mb-0">Tell us which page you were on</Paragraph>
+                  </li>
+                </ul>
+              </Card>
+            </motion.div>
+          </Container>
+        </section>
       </main>
 
       <SiteFooter onNavigate={handleNavigate} />
       <ToastContainer toasts={toasts} onClose={removeToast} />
-    </>
+    </div>
   );
 }

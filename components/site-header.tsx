@@ -1,46 +1,19 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { THEME } from "@/lib/theme";
-import { LogIn, UserPlus, Lock, Menu, X } from "lucide-react";
+import { LogIn, UserPlus, Lock, Menu, X, ChevronDown } from "lucide-react";
 import * as React from "react";
 import { formatNumber as formatNumberLocal } from "@/lib/tokens";
 import { Skeleton } from "@/components/ui";
+import { CurrencyDropdown } from "@/components/ui/currency-dropdown";
 import Image from "next/image";
 
 type Region = "EU" | "UK" | "US";
 
 function cn(...cls: Array<string | false | undefined>) {
   return cls.filter(Boolean).join(" ");
-}
-
-function RegionToggle({
-  region,
-  onChange,
-}: {
-  region: Region;
-  onChange: (r: Region) => void;
-}) {
-  const regions: Array<{ value: Region; label: string }> = [
-    { value: "EU", label: "EUR" },
-    { value: "US", label: "USD" },
-  ];
-
-  return (
-    <div className="inline-flex rounded-lg overflow-hidden border"
-         style={{ borderColor: THEME.cardBorder }}>
-      {regions.map((r) => (
-        <button
-          key={r.value}
-          onClick={() => onChange(r.value)}
-          className={cn("px-3 py-2 text-xs md:text-sm font-medium", region === r.value ? "font-semibold" : "opacity-60")}
-          style={{ background: region === r.value ? THEME.accent : "transparent", color: region === r.value ? "#0E0E10" : THEME.text }}
-        >
-          {r.label}
-        </button>
-      ))}
-    </div>
-  );
 }
 
 export default function SiteHeader({ 
@@ -61,17 +34,45 @@ export default function SiteHeader({
   formatNumber?: (n: number) => string;
 }) {
   const { data: session } = useSession();
+  const router = useRouter();
   const isAuthed = !!session?.user?.email;
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [linksDropdownOpen, setLinksDropdownOpen] = React.useState(false);
+  const linksDropdownRef = React.useRef<HTMLDivElement>(null);
 
   // Навигация (используем те же ID, что и в главном приложении)
-  const NAV = [
+  const NAV: Array<{ id: string; label: string; protected?: boolean }> = [
     { id: "dashboard", label: "Dashboard", protected: true },
-    { id: "generator", label: "Generator", protected: true },
+    { id: "generator", label: "Course", protected: false }, // Changed to false - guests can view Course page
+    { id: "coaches", label: "Coaches", protected: false },
+    { id: "how-it-works", label: "How it Works", protected: false },
     { id: "pricing", label: "Pricing", protected: false },
-    { id: "consultations", label: "Consultations", protected: true },
-    { id: "contact", label: "Contact Us", protected: false },
-  ] as const;
+  ];
+
+  // Links dropdown items
+  const LINKS: Array<{ id: string; label: string }> = [
+    { id: "what-you-receive", label: "What you receive" },
+    { id: "trust-safety", label: "Trust & safety" },
+    { id: "payments-tokens", label: "Payments & tokens" },
+    { id: "contact", label: "Contact Us" },
+  ];
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (linksDropdownRef.current && !linksDropdownRef.current.contains(event.target as Node)) {
+        setLinksDropdownOpen(false);
+      }
+    }
+
+    if (linksDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [linksDropdownOpen]);
 
   return (
     <header
@@ -86,35 +87,96 @@ export default function SiteHeader({
         >
           <Image 
             src="/images/logo.svg" 
-            alt="AIFitWorld Logo" 
+            alt="Chaletcoaching Logo" 
             width={24}
             height={24}
             className="h-6 w-6"
           />
           <div className="font-extrabold tracking-tight">
-            AI<span style={{ color: THEME.accent }}>Fit</span>World
+            Chalet<span style={{ color: THEME.accent }}>coaching</span>
           </div>
         </button>
 
         {/* Нав */}
         <nav className="hidden md:flex items-center gap-2">
-          {NAV.map((n) => (
+          {NAV.map((n) => {
+            // Показывать Dashboard только если пользователь авторизован
+            if (n.id === "dashboard" && !isAuthed) {
+              return null;
+            }
+            return (
+              <button
+                key={n.id}
+                onClick={() => {
+                  if (n.id === "coaches") {
+                    router.push("/coaches");
+                  } else if (n.id === "pricing") {
+                    router.push("/pricing");
+                  } else if (n.id === "generator") {
+                    router.push("/generator");
+                  } else if (n.id === "dashboard") {
+                    router.push("/dashboard" as any);
+                  } else if (n.id === "how-it-works") {
+                    router.push("/how-it-works");
+                  } else if (n.id === "home") {
+                    router.push("/");
+                  } else {
+                    onNavigate(n.id);
+                  }
+                }}
+                className="rounded-lg px-3 py-2 text-sm opacity-70 hover:opacity-100 transition-opacity whitespace-nowrap"
+              >
+                <span className="inline-flex items-center gap-1">
+                  {!isAuthed && n.protected && <Lock size={14} />} {n.label}
+                </span>
+              </button>
+            );
+          })}
+          
+          {/* Links Dropdown */}
+          <div className="relative" ref={linksDropdownRef}>
             <button
-              key={n.id}
-              onClick={() => {
-                if (n.id === "contact") {
-                  window.location.href = "/contact";
-                } else {
-                  onNavigate(n.id);
-                }
-              }}
-              className="rounded-lg px-3 py-2 text-sm opacity-70 hover:opacity-100 transition-opacity whitespace-nowrap"
+              onClick={() => setLinksDropdownOpen(!linksDropdownOpen)}
+              className="rounded-lg px-3 py-2 text-sm opacity-70 hover:opacity-100 transition-opacity whitespace-nowrap inline-flex items-center gap-1"
             >
-              <span className="inline-flex items-center gap-1">
-                {!isAuthed && n.protected && <Lock size={14} />} {n.label}
-              </span>
+              Links
+              <ChevronDown 
+                size={14} 
+                className={`transition-transform ${linksDropdownOpen ? "rotate-180" : ""}`}
+              />
             </button>
-          ))}
+            
+            {linksDropdownOpen && (
+              <div
+                className="absolute top-full left-0 mt-2 rounded-xl border shadow-lg backdrop-blur-sm min-w-[200px] z-30"
+                style={{
+                  background: THEME.card,
+                  borderColor: THEME.cardBorder,
+                }}
+              >
+                {LINKS.map((link) => (
+                  <button
+                    key={link.id}
+                    onClick={() => {
+                      setLinksDropdownOpen(false);
+                      if (link.id === "contact") {
+                        router.push("/contact");
+                      } else if (link.id === "what-you-receive") {
+                        router.push("/what-you-receive");
+                      } else if (link.id === "trust-safety") {
+                        router.push("/trust-safety");
+                      } else if (link.id === "payments-tokens") {
+                        router.push("/payments-tokens");
+                      }
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm opacity-85 hover:opacity-100 hover:bg-surface-hover transition-colors first:rounded-t-xl last:rounded-b-xl"
+                  >
+                    {link.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Мобильное меню кнопка */}
@@ -147,7 +209,7 @@ export default function SiteHeader({
             </div>
           )}
           
-          <RegionToggle region={region} onChange={setRegion} />
+          <CurrencyDropdown region={region} onChange={setRegion} />
           {isAuthed ? (
             <button
               onClick={() => void signOut()}
@@ -202,29 +264,70 @@ export default function SiteHeader({
 
             {/* Переключатель валют */}
             <div className="flex justify-center">
-              <RegionToggle region={region} onChange={setRegion} />
+              <CurrencyDropdown region={region} onChange={setRegion} />
             </div>
 
             {/* Навигация */}
             <nav className="space-y-2">
-              {NAV.map((n) => (
-                <button
-                  key={n.id}
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    if (n.id === "contact") {
-                      window.location.href = "/contact";
-                    } else {
-                      onNavigate(n.id);
-                    }
-                  }}
-                  className="w-full text-left rounded-lg px-3 py-3 text-sm opacity-70 hover:opacity-100 transition-opacity hover:bg-white/5"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    {!isAuthed && n.protected && <Lock size={14} />} {n.label}
-                  </span>
-                </button>
-              ))}
+              {NAV.map((n) => {
+                // Показывать Dashboard только если пользователь авторизован
+                if (n.id === "dashboard" && !isAuthed) {
+                  return null;
+                }
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      if (n.id === "coaches") {
+                        router.push("/coaches");
+                      } else if (n.id === "pricing") {
+                        router.push("/pricing");
+                      } else if (n.id === "generator") {
+                        router.push("/generator");
+                      } else if (n.id === "dashboard") {
+                        router.push("/dashboard" as any);
+                      } else if (n.id === "how-it-works") {
+                        router.push("/how-it-works");
+                      } else if (n.id === "home") {
+                        router.push("/");
+                      } else {
+                        onNavigate(n.id);
+                      }
+                    }}
+                    className="w-full text-left rounded-lg px-3 py-3 text-sm opacity-70 hover:opacity-100 transition-opacity hover:bg-white/5"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      {!isAuthed && n.protected && <Lock size={14} />} {n.label}
+                    </span>
+                  </button>
+                );
+              })}
+              
+              {/* Links section in mobile menu */}
+              <div className="pt-2 border-t" style={{ borderColor: THEME.cardBorder }}>
+                <div className="text-xs font-semibold opacity-60 px-3 py-2 uppercase tracking-wider">Links</div>
+                {LINKS.map((link) => (
+                  <button
+                    key={link.id}
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      if (link.id === "contact") {
+                        router.push("/contact");
+                      } else if (link.id === "what-you-receive") {
+                        router.push("/what-you-receive");
+                      } else if (link.id === "trust-safety") {
+                        router.push("/trust-safety");
+                      } else if (link.id === "payments-tokens") {
+                        router.push("/payments-tokens");
+                      }
+                    }}
+                    className="w-full text-left rounded-lg px-3 py-3 text-sm opacity-70 hover:opacity-100 transition-opacity hover:bg-white/5"
+                  >
+                    {link.label}
+                  </button>
+                ))}
+              </div>
             </nav>
 
             {/* Разделитель */}
