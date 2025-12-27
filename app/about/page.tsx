@@ -111,6 +111,7 @@ export default function AboutPage() {
     if (page === "home") {
       router.push("/");
     } else if (page === "dashboard") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       router.push("/dashboard" as any);
     } else if (page === "generator") {
       router.push("/generator");
