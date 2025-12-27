@@ -1966,7 +1966,7 @@ function Home({
   );
 }
 
-function Dashboard({ requireAuth, openAuth, balance, currentPreview, onDismissPreview, onPublishCourse, loadBalance, balanceLoading }: { 
+export function Dashboard({ requireAuth, openAuth, balance, currentPreview, onDismissPreview, onPublishCourse, loadBalance, balanceLoading }: { 
   requireAuth: boolean; 
   openAuth: () => void;
   balance: number;

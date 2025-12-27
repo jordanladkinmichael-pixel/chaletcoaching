@@ -26,7 +26,7 @@ export default function SiteHeader({
   setRegion,
   formatNumber: formatNumberProp,
 }: { 
-  onOpenAuth: (mode: "signin" | "signup") => void;
+  onOpenAuth?: (mode: "signin" | "signup") => void;
   onNavigate: (page: string) => void;
   balance?: number | null;
   balanceLoading?: boolean;
@@ -40,6 +40,22 @@ export default function SiteHeader({
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [linksDropdownOpen, setLinksDropdownOpen] = React.useState(false);
   const linksDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Default auth handler that redirects to new auth pages
+  const handleOpenAuth = React.useCallback((mode: "signin" | "signup") => {
+    if (onOpenAuth) {
+      // Use provided handler if available (for backward compatibility)
+      onOpenAuth(mode);
+      return;
+    }
+    // Default: redirect to new auth pages with returnTo
+    const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+    const returnTo = currentPath !== "/auth/sign-in" && currentPath !== "/auth/sign-up" && currentPath !== "/auth/reset-password"
+      ? currentPath
+      : "/dashboard";
+    const query = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : "";
+    router.push(`/auth/${mode}${query}`);
+  }, [onOpenAuth, router]);
 
   // Навигация (используем те же ID, что и в главном приложении)
   const NAV: Array<{ id: string; label: string; protected?: boolean }> = [
@@ -222,14 +238,14 @@ export default function SiteHeader({
           ) : (
             <>
               <button
-                onClick={() => onOpenAuth("signin")}
+                onClick={() => handleOpenAuth("signin")}
                 className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border whitespace-nowrap flex-shrink-0"
                 style={{ background: "transparent", color: THEME.text, borderColor: THEME.cardBorder }}
               >
                 <LogIn size={16} /> Sign in
               </button>
               <button
-                onClick={() => onOpenAuth("signup")}
+                onClick={() => handleOpenAuth("signup")}
                 className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.6)] whitespace-nowrap flex-shrink-0"
                 style={{ background: THEME.accent, color: "#0E0E10" }}
               >
@@ -350,7 +366,7 @@ export default function SiteHeader({
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      onOpenAuth("signin");
+                      handleOpenAuth("signin");
                     }}
                     className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold border"
                     style={{ background: "transparent", color: THEME.text, borderColor: THEME.cardBorder }}
@@ -360,7 +376,7 @@ export default function SiteHeader({
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      onOpenAuth("signup");
+                      handleOpenAuth("signup");
                     }}
                     className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-[0_0_0_1px_rgba(0,0,0,0.6)]"
                     style={{ background: THEME.accent, color: "#0E0E10" }}
