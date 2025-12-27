@@ -157,7 +157,7 @@ export default function CoachProfilePage() {
             <div className="max-w-2xl mx-auto text-center">
               <h1 className="text-3xl font-bold mb-4">Something went wrong</h1>
               <p className="text-text-muted mb-8">
-                We couldn't load the coach profile. Please try again.
+                We couldn&apos;t load the coach profile. Please try again.
               </p>
               <Button variant="primary" size="lg" onClick={() => window.location.reload()}>
                 Retry

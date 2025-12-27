@@ -1,5 +1,6 @@
 import { THEME } from "@/lib/theme";
 import Image from "next/image";
+import Link from "next/link";
 
 interface SiteFooterProps {
   onNavigate?: (page: string) => void;

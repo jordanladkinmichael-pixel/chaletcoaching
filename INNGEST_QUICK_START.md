@@ -19,10 +19,17 @@ CHALETCOACHING_INNGEST_EVENT_KEY=your-event-key
 CHALETCOACHING_INNGEST_SIGNING_KEY=signkey-xxx
 ```
 
-### 4. Настройте Sync URL
+### 4. Настройте Sync URL и Deployment Protection Key
 Inngest Dashboard → Settings → Apps → ваш App:
 - **Sync URL**: `https://your-domain.vercel.app/api/inngest`
+- **Deployment Protection Key**: (см. инструкцию ниже)
 - Нажмите **"Sync"**
+
+**Как получить Deployment Protection Key:**
+1. Vercel Dashboard → Settings → Deployment Protection
+2. Создайте "Protection Bypass Secret" для Inngest
+3. Скопируйте ключ и вставьте в Inngest Dashboard
+4. Подробная инструкция: см. `INNGEST_VERCEL_DEPLOYMENT_KEY.md`
 
 ### 5. Проверьте работу
 1. Сгенерируйте PDF на продакшене
