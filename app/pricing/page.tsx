@@ -8,12 +8,7 @@ import SiteFooter from "@/components/site-footer";
 import { Container, H1, Paragraph } from "@/components/ui";
 import { useCurrencyStore } from "@/lib/stores/currency-store";
 import { TOKEN_PACKS, TOKEN_RATES, type UiPackId } from "@/lib/token-packages";
-import { Pricing } from "@/app/page";
-
-// Note: Pricing component is exported from app/page.tsx
-
-// Extract Pricing component logic - we'll need to refactor it to be reusable
-// For now, we'll create a wrapper that uses the same component
+import { Pricing } from "@/components/pricing/Pricing";
 
 type Region = "EU" | "UK" | "US";
 

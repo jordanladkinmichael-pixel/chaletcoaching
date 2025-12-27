@@ -111,7 +111,7 @@ export default function AboutPage() {
     if (page === "home") {
       router.push("/");
     } else if (page === "dashboard") {
-      router.push("/dashboard");
+      router.push("/dashboard" as any);
     } else if (page === "generator") {
       router.push("/generator");
     } else if (page === "coaches") {
