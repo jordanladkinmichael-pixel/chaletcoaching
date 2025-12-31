@@ -1173,7 +1173,7 @@ function MiniFAQSection() {
       <p className="text-sm text-text-muted">
         {faq.answer}
         {faq.id === "refund-policy" && (
-          <> {' '}
+          <>{" "}
             <Link href="/legal/refunds" className="text-primary hover:underline">
               Read our Refund Policy
             </Link>

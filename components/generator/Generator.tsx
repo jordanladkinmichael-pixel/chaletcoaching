@@ -9,6 +9,8 @@ import {
   Image as ImageIcon,
   Lock,
   Info,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 import {
   Container,
@@ -46,6 +48,11 @@ export type GeneratorProps = {
   onPublishCourse: (opts: GeneratorOpts) => Promise<void> | void;
   balance: number;
   loading: "preview" | "publish" | null;
+  errorMsg?: string | null;
+  errorType?: "insufficient_tokens" | "api_error" | null;
+  successMsg?: string | null;
+  onClearError?: () => void;
+  onClearSuccess?: () => void;
 };
 
 export function Generator({
@@ -56,6 +63,11 @@ export function Generator({
   onPublishCourse,
   balance,
   loading,
+  errorMsg,
+  errorType,
+  successMsg,
+  onClearError,
+  onClearSuccess,
 }: GeneratorProps) {
   const [weeks, setWeeks] = useState<number>(4);
   const [sessions, setSessions] = useState<number>(4);
@@ -720,6 +732,82 @@ export function Generator({
               {/* Action buttons (moved from Generator) */}
               <div className="pt-4 border-t" style={{ borderColor: THEME.cardBorder }}>
                 <div className="space-y-3">
+                  {/* Success banner (only for Publish) */}
+                  {successMsg && (
+                    <div
+                      className="rounded-lg p-4 flex items-start gap-3 mb-4"
+                      role="alert"
+                      style={{
+                        backgroundColor: "rgba(34, 197, 94, 0.1)",
+                        border: "1px solid rgba(34, 197, 94, 0.2)",
+                      }}
+                    >
+                      <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-medium text-green-400 text-sm mb-1">Success</div>
+                        <div className="text-sm" style={{ color: "rgba(34, 197, 94, 0.9)" }}>
+                          {successMsg}
+                        </div>
+                        <div className="mt-2 flex items-center gap-4">
+                          <Link
+                            href="/dashboard"
+                            className="text-xs text-green-400 hover:text-green-300 underline"
+                          >
+                            View in dashboard
+                          </Link>
+                          {onClearSuccess && (
+                            <button
+                              onClick={onClearSuccess}
+                              className="text-xs text-green-400 hover:text-green-300 underline"
+                              type="button"
+                            >
+                              Dismiss
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Error banner */}
+                  {errorMsg && (
+                    <div
+                      className="rounded-lg p-4 flex items-start gap-3 mb-4"
+                      role="alert"
+                      style={{
+                        backgroundColor: "rgba(239, 68, 68, 0.1)",
+                        border: "1px solid rgba(239, 68, 68, 0.2)",
+                      }}
+                    >
+                      <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-medium text-red-400 text-sm mb-1">Error</div>
+                        <div className="text-sm" style={{ color: "rgba(239, 68, 68, 0.9)" }}>
+                          {errorMsg}
+                        </div>
+                        <div className="mt-2 flex items-center gap-4">
+                          {errorType === "insufficient_tokens" && (
+                            <Link
+                              href="/pricing"
+                              className="text-xs text-red-400 hover:text-red-300 underline"
+                            >
+                              Top up tokens
+                            </Link>
+                          )}
+                          {onClearError && (
+                            <button
+                              onClick={onClearError}
+                              className="text-xs text-red-400 hover:text-red-300 underline"
+                              type="button"
+                            >
+                              Dismiss
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {requireAuth ? (
                     // Для гостей: кнопка с просьбой авторизироваться
                     <AccentButton onClick={openAuth} className="w-full justify-center">
@@ -728,28 +816,6 @@ export function Generator({
                   ) : (
                     // Для авторизованных: обычные кнопки генерации
                     <>
-                      {/* Not enough tokens message */}
-                      {(balance < PREVIEW_COST || balance < courseCost) && (
-                        <div
-                          className="p-3 rounded-lg border"
-                          style={{ borderColor: THEME.cardBorder, background: "#19191f" }}
-                        >
-                          <div className="text-sm text-text-muted mb-2">Not enough tokens</div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              // Navigate to pricing - will be handled by parent
-                              if (typeof window !== "undefined") {
-                                window.location.href = "/pricing";
-                              }
-                            }}
-                            className="text-xs"
-                          >
-                            Top up tokens
-                          </Button>
-                        </div>
-                      )}
 
                       <AccentButton
                         onClick={handlePreview}

@@ -1,8 +1,9 @@
 // app/contact/ContactForm.tsx
 "use client";
-import React from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle, AlertCircle } from "lucide-react";
 import { THEME } from "@/lib/theme";
 import { Select, Button } from "@/components/ui";
@@ -20,12 +21,15 @@ const topicOptions = [
   { value: "Tokens and billing", label: "Tokens and billing" },
   { value: "Coach requests", label: "Coach requests" },
   { value: "Instant AI generator", label: "Instant AI generator" },
-  { value: "Account and dashboard", label: "Account and dashboard" },
+  { value: "Account and login", label: "Account and login" },
+  { value: "Other / Support", label: "Other / Support" },
+  { value: "Account and dashboard", label: "Account and dashboard" }, // legacy label fallback
   { value: "Partnerships", label: "Partnerships" },
   { value: "Other", label: "Other" },
 ];
 
 export default function ContactForm() {
+  const searchParams = useSearchParams();
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [topic, setTopic] = React.useState("");
@@ -34,6 +38,38 @@ export default function ContactForm() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const successRef = useRef<HTMLDivElement>(null);
+
+  // Allowlist for topics
+  const allowedTopics = useMemo(
+    () => new Set(topicOptions.map((t) => t.value).filter(Boolean)),
+    []
+  );
+
+  // One-time prefill from query params
+  useEffect(() => {
+    const qpTopic = searchParams.get("topic");
+    const qpMessage = searchParams.get("message");
+
+    if (qpTopic && allowedTopics.has(qpTopic)) {
+      setTopic(qpTopic);
+    }
+
+    if (qpMessage) {
+      try {
+        const decoded = decodeURIComponent(qpMessage);
+        const trimmed = decoded.trim().slice(0, 800);
+        if (trimmed) {
+          setMessage(trimmed);
+        }
+      } catch {
+        // ignore malformed encoding
+      }
+    }
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,6 +79,10 @@ export default function ContactForm() {
     const parsed = Schema.safeParse({ name, email, topic, message, companyWebsite });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Invalid input");
+      // focus error
+      setTimeout(() => {
+        errorRef.current?.focus();
+      }, 0);
       return;
     }
 
@@ -73,6 +113,9 @@ export default function ContactForm() {
         setTopic("");
         setMessage("");
         setCompanyWebsite("");
+        setTimeout(() => {
+          successRef.current?.focus();
+        }, 0);
       } else {
         throw new Error(response.error ?? "Failed to send message");
       }
@@ -85,6 +128,9 @@ export default function ContactForm() {
           ? `${errorMessage} Please try again or email us directly at info@chaletcoaching.co.uk.`
           : errorMessage
       );
+      setTimeout(() => {
+        errorRef.current?.focus();
+      }, 0);
     } finally {
       setLoading(false);
     }
@@ -169,6 +215,10 @@ export default function ContactForm() {
       {/* Success banner */}
       {success && (
         <div
+          ref={successRef}
+          tabIndex={-1}
+          role="status"
+          aria-live="polite"
           className="rounded-lg p-4 flex items-start gap-3"
           style={{
             backgroundColor: "rgba(34, 197, 94, 0.1)",
@@ -188,6 +238,10 @@ export default function ContactForm() {
       {/* Error banner */}
       {error && (
         <div
+          ref={errorRef}
+          tabIndex={-1}
+          role="alert"
+          aria-live="assertive"
           className="rounded-lg p-4 flex items-start gap-3"
           style={{
             backgroundColor: "rgba(239, 68, 68, 0.1)",

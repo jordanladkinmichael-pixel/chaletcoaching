@@ -184,10 +184,31 @@ export function Dashboard({ requireAuth, openAuth, balance, currentPreview, onDi
     };
   };
 
+  type CoachRequestItem = {
+    id: string;
+    status: string;
+    createdAt: string;
+    coachSlug: string;
+    coachName?: string | null;
+    coachAvatar?: string | null;
+    goal: string;
+    level: string;
+    trainingType: string;
+    equipment: string;
+    daysPerWeek: number;
+    tokensCharged: number;
+  };
+
   // Все хуки должны быть в начале компонента
-  const [loading, setLoading] = React.useState(true);
+  const [loadingCourses, setLoadingCourses] = React.useState(true);
+  const [loadingRequests, setLoadingRequests] = React.useState(true);
+  const [loadingTx, setLoadingTx] = React.useState(true);
   const [courses, setCourses] = React.useState<CourseItem[]>([]);
+  const [requests, setRequests] = React.useState<CoachRequestItem[]>([]);
   const [transactions, setTransactions] = React.useState<TxItem[]>([]);
+  const [errorCourses, setErrorCourses] = React.useState<string | null>(null);
+  const [errorRequests, setErrorRequests] = React.useState<string | null>(null);
+  const [errorTx, setErrorTx] = React.useState<string | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [hasMore, setHasMore] = React.useState(true);
   const [loadingMore, setLoadingMore] = React.useState(false);
@@ -201,43 +222,72 @@ export function Dashboard({ requireAuth, openAuth, balance, currentPreview, onDi
   const ITEMS_PER_PAGE = 20;
 
   // Все хуки должны быть здесь, до условного возврата
-  // Загрузка начальных данных
-  React.useEffect(() => {
-    let cancelled = false;
-
-    async function fetchCoursesAndTx() {
-      try {
-        setLoading(true);
-        const [cRes, tRes] = await Promise.all([
-          fetch("/api/courses/list"),
-          fetch(`/api/tokens/history?limit=${ITEMS_PER_PAGE}`),
-        ]);
-        if (cancelled) return;
-        const cJson = await cRes.json().catch(() => ({ items: [] }));
-        const tJson = await tRes.json().catch(() => ({ items: [] }));
-        const coursesData = Array.isArray(cJson.items) ? cJson.items : [];
-        const transactionsData = Array.isArray(tJson.items) ? tJson.items : [];
-        console.log("Loaded courses:", coursesData);
-        console.log("Loaded transactions:", transactionsData);
-        setCourses(coursesData);
-        setTransactions(transactionsData);
-        setHasMore(transactionsData?.length === ITEMS_PER_PAGE);
-      } catch (error) {
-        console.error("Failed to load dashboard data:", error);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  // Загрузка данных
+  const loadCourses = React.useCallback(async (signal?: AbortSignal) => {
+    try {
+      setErrorCourses(null);
+      setLoadingCourses(true);
+      const res = await fetch("/api/courses/list", { signal });
+      const cJson = await res.json().catch(() => ({ items: [] }));
+      const coursesData = Array.isArray(cJson.items) ? cJson.items : [];
+      setCourses(coursesData);
+    } catch (error) {
+      if (signal?.aborted) return;
+      console.error("Failed to load courses:", error);
+      setErrorCourses("Could not load courses. Try again.");
+    } finally {
+      if (!signal?.aborted) setLoadingCourses(false);
     }
+  }, []);
 
-    fetchCoursesAndTx();
+  const loadRequests = React.useCallback(async (signal?: AbortSignal) => {
+    try {
+      setErrorRequests(null);
+      setLoadingRequests(true);
+      const res = await fetch("/api/coach-requests", { signal });
+      const j = await res.json().catch(() => ({ items: [] }));
+      const reqs = Array.isArray(j.items) ? j.items : [];
+      setRequests(reqs);
+    } catch (error) {
+      if (signal?.aborted) return;
+      console.error("Failed to load coach requests:", error);
+      setErrorRequests("Could not load coach requests. Try again.");
+    } finally {
+      if (!signal?.aborted) setLoadingRequests(false);
+    }
+  }, []);
+
+  const loadTransactions = React.useCallback(async (signal?: AbortSignal) => {
+    try {
+      setErrorTx(null);
+      setLoadingTx(true);
+      const tRes = await fetch(`/api/tokens/history?limit=${ITEMS_PER_PAGE}`, { signal });
+      const tJson = await tRes.json().catch(() => ({ items: [] }));
+      const transactionsData = Array.isArray(tJson.items) ? tJson.items : [];
+      setTransactions(transactionsData);
+      setHasMore(transactionsData?.length === ITEMS_PER_PAGE);
+      setCurrentPage(1);
+    } catch (error) {
+      if (signal?.aborted) return;
+      console.error("Failed to load transactions:", error);
+      setErrorTx("Could not load token history. Try again.");
+    } finally {
+      if (!signal?.aborted) setLoadingTx(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+    void Promise.all([
+      loadCourses(controller.signal),
+      loadRequests(controller.signal),
+      loadTransactions(controller.signal),
+    ]);
 
     // Подписка на событие публикации курса
     const onCoursePublished = () => {
       console.log("Detected course:published event – refreshing courses");
-      fetch("/api/courses/list").then(r => r.json()).then(j => {
-        const coursesData = Array.isArray(j.items) ? j.items : [];
-        setCourses(coursesData);
-      }).catch(err => console.error("Failed to refresh courses after publish:", err));
+      loadCourses(controller.signal).catch((err) => console.error("Failed to refresh courses after publish:", err));
     };
 
     if (typeof window !== 'undefined') {
@@ -245,12 +295,12 @@ export function Dashboard({ requireAuth, openAuth, balance, currentPreview, onDi
     }
 
     return () => {
-      cancelled = true;
+      controller.abort();
       if (typeof window !== 'undefined') {
         window.removeEventListener('course:published', onCoursePublished as EventListener);
       }
     };
-  }, []);
+  }, [loadCourses, loadRequests, loadTransactions]);
 
   // Загрузка дополнительных транзакций
   const loadMoreTransactions = React.useCallback(async () => {
@@ -400,6 +450,18 @@ export function Dashboard({ requireAuth, openAuth, balance, currentPreview, onDi
       const reason = tx.meta?.reason || "Unknown";
       return reason.charAt(0).toUpperCase() + reason.slice(1);
     }
+  };
+
+  const formatRequestStatus = (status: string) => {
+    const map: Record<string, string> = {
+      pending: "Pending",
+      in_progress: "In progress",
+      delivered: "Delivered",
+      failed: "Failed",
+      cancelled: "Cancelled",
+      refunded: "Refunded",
+    };
+    return map[status] || status;
   };
 
   return (
@@ -573,8 +635,22 @@ export function Dashboard({ requireAuth, openAuth, balance, currentPreview, onDi
           )}
         </div>
         
-        {loading ? (
+        {loadingCourses ? (
           <div className="mt-4 text-sm opacity-80">Loading courses...</div>
+        ) : errorCourses ? (
+          <div
+            className="mt-4 rounded-lg p-4 border"
+            role="alert"
+            style={{ borderColor: THEME.cardBorder, background: "#2a1818" }}
+          >
+            <div className="text-sm font-medium text-red-300">{errorCourses}</div>
+            <button
+              onClick={() => loadCourses()}
+              className="mt-2 text-xs underline text-red-200 hover:text-red-100"
+            >
+              Retry
+            </button>
+          </div>
         ) : courses.length === 0 ? (
           <div className="mt-8 text-center py-8">
             <Dumbbell size={48} className="mx-auto opacity-40 mb-4" />
@@ -736,6 +812,105 @@ export function Dashboard({ requireAuth, openAuth, balance, currentPreview, onDi
         )}
       </Card>
 
+      {/* Coach requests */}
+      <Card>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-semibold flex items-center gap-2">
+            <UserPlus size={18} /> Coach Requests
+          </h3>
+          {requests.length > 0 && (
+            <div className="text-sm text-text-muted">
+              {requests.length > 6 ? `Showing 6 of ${requests.length}` : `${requests.length} request${requests.length > 1 ? "s" : ""}`}
+            </div>
+          )}
+        </div>
+
+        {loadingRequests ? (
+          <div className="mt-4 text-sm opacity-80">Loading coach requests...</div>
+        ) : errorRequests ? (
+          <div
+            className="mt-4 rounded-lg p-4 border"
+            role="alert"
+            style={{ borderColor: THEME.cardBorder, background: "#2a1818" }}
+          >
+            <div className="text-sm font-medium text-red-300">{errorRequests}</div>
+            <button
+              onClick={() => loadRequests()}
+              className="mt-2 text-xs underline text-red-200 hover:text-red-100"
+            >
+              Retry
+            </button>
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="mt-8 text-center py-8">
+            <UserPlus size={48} className="mx-auto opacity-40 mb-4" />
+            <div className="text-lg font-medium">No coach requests yet</div>
+            <p className="text-sm opacity-70 mt-2">
+              Submit your first request to a coach to see it here.
+            </p>
+            <div className="mt-4">
+              <AccentButton onClick={() => window.location.assign("/coaches")}>
+                Find a coach
+              </AccentButton>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {requests.slice(0, 6).map((req) => (
+              <div
+                key={req.id}
+                className="flex items-center gap-3 p-3 rounded-lg border"
+                style={{ borderColor: THEME.cardBorder }}
+              >
+                <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center overflow-hidden border" style={{ borderColor: THEME.cardBorder }}>
+                  {req.coachAvatar ? (
+                    <Image
+                      src={`/images/${req.coachAvatar}`}
+                      alt={req.coachName || req.coachSlug}
+                      width={48}
+                      height={48}
+                      className="w-12 h-12 object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm opacity-70">{(req.coachName || req.coachSlug || "?").slice(0, 2).toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div className="font-semibold text-sm">
+                      {req.coachName || req.coachSlug}
+                    </div>
+                    <span className="text-xs px-2 py-1 rounded-full border" style={{ borderColor: THEME.cardBorder }}>
+                      {formatRequestStatus(req.status)}
+                    </span>
+                  </div>
+                  <div className="text-xs opacity-70 mt-1">
+                    {req.goal} • {req.level} • {req.trainingType} • {req.daysPerWeek} days/week
+                  </div>
+                  <div className="text-xs opacity-70 mt-1">
+                    Tokens charged: {formatNumber(req.tokensCharged)}
+                  </div>
+                  <div className="text-xs opacity-60 mt-1">
+                    {new Date(req.createdAt).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {requests.length > 6 && (
+              <div className="text-xs opacity-70 text-right">
+                Showing 6 of {requests.length}
+              </div>
+            )}
+            <div className="text-sm mt-2">
+              Need help with a request?{" "}
+              <a href="/support" className="underline text-primary hover:text-primary-hover">
+                Contact support
+              </a>
+            </div>
+          </div>
+        )}
+      </Card>
+
       {/* История транзакций */}
       <Card>
         <div className="flex items-center justify-between">
@@ -749,8 +924,22 @@ export function Dashboard({ requireAuth, openAuth, balance, currentPreview, onDi
           )}
         </div>
         
-        {loading ? (
+        {loadingTx ? (
           <div className="mt-4 text-sm opacity-80">Loading transactions...</div>
+        ) : errorTx ? (
+          <div
+            className="mt-4 rounded-lg p-4 border"
+            role="alert"
+            style={{ borderColor: THEME.cardBorder, background: "#2a1818" }}
+          >
+            <div className="text-sm font-medium text-red-300">{errorTx}</div>
+            <button
+              onClick={() => loadTransactions()}
+              className="mt-2 text-xs underline text-red-200 hover:text-red-100"
+            >
+              Retry
+            </button>
+          </div>
         ) : transactions.length === 0 ? (
           <div className="mt-8 text-center py-8">
             <Timer size={48} className="mx-auto opacity-40 mb-4" />
@@ -800,6 +989,31 @@ export function Dashboard({ requireAuth, openAuth, balance, currentPreview, onDi
             )}
           </div>
         )}
+      </Card>
+
+      {/* Support links */}
+      <Card>
+        <h3 className="text-xl font-semibold">Need help?</h3>
+        <p className="text-sm opacity-80 mt-1">
+          Find answers, payments info, or contact support.
+        </p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {[
+            { href: "/support", label: "Support center" },
+            { href: "/faq", label: "FAQ" },
+            { href: "/payments-tokens", label: "Payments & tokens" },
+            { href: "/contact", label: "Contact" },
+          ].map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border transition-colors hover:bg-surface-hover"
+              style={{ borderColor: THEME.cardBorder }}
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
       </Card>
       
       {/* Модальное окно просмотра курса */}

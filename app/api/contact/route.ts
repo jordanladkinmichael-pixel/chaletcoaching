@@ -102,13 +102,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Send email via Resend
+    // Email service guard
     if (!process.env.RESEND_API_KEY) {
-      console.error("RESEND_API_KEY is not set");
-      // Log server-side for debugging
-      console.log("Contact form submission:", { name, email, topic, message });
-      // Return success even without email service configured
-      return NextResponse.json({ ok: true });
+      const isProd = process.env.NODE_ENV === "production";
+      if (isProd) {
+        return NextResponse.json(
+          { ok: false, error: "Email service is temporarily unavailable. Please try again later." },
+          { status: 500 }
+        );
+      } else {
+        console.log("[contact] Email skipped (no RESEND_API_KEY).");
+        return NextResponse.json({ ok: true, dev: true });
+      }
     }
 
     const { data, error } = await resend.emails.send({
@@ -116,16 +121,7 @@ export async function POST(req: NextRequest) {
       to: ["info@chaletcoaching.co.uk"],
       replyTo: email,
       subject: `Contact Form: ${topic}`,
-      html: `
-        <h3>New contact form submission</h3>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Topic:</strong> ${topic}</p>
-        <p><strong>Message:</strong></p>
-        <p>${message.replace(/\n/g, "<br>")}</p>
-        <hr>
-        <p><em>Reply to: ${email}</em></p>
-      `,
+      html: renderEmail({ name, email, topic, message }),
     });
 
     if (error) {
@@ -141,9 +137,36 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Contact form error:", error);
     return NextResponse.json(
-      { ok: false, error: "An error occurred. Please try again or email us directly." },
+      { ok: false, error: "Something went wrong." },
       { status: 500 }
     );
   }
+}
+
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function renderEmail(params: { name: string; email: string; topic: string; message: string }) {
+  const safeName = escapeHtml(params.name);
+  const safeEmail = escapeHtml(params.email);
+  const safeTopic = escapeHtml(params.topic);
+  const safeMessage = escapeHtml(params.message).replace(/\n/g, "<br>");
+
+  return `
+    <h3>New contact form submission</h3>
+    <p><strong>Name:</strong> ${safeName}</p>
+    <p><strong>Email:</strong> <a href="mailto:${safeEmail}">${safeEmail}</a></p>
+    <p><strong>Topic:</strong> ${safeTopic}</p>
+    <p><strong>Message:</strong></p>
+    <div style="padding:8px 12px; border:1px solid #e5e7eb; border-radius:8px;">${safeMessage}</div>
+    <hr>
+    <p><em>Reply-To set to: ${safeEmail}</em></p>
+  `;
 }
 

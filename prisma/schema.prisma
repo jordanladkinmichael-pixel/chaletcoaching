@@ -19,6 +19,7 @@ model User {
   transactions  Transaction[]
   courses       Course[]
   previews      Preview[]
+  coachRequests CoachRequest[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   tokens        Int           @default(0)
@@ -107,4 +108,35 @@ model Preview {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+// Coach Requests persistence
+model CoachRequest {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status        String   @default("pending")
+
+  coachId       String
+  coachSlug     String
+  coachName     String?
+  coachAvatar   String?
+
+  goal          String
+  level         String
+  trainingType  String
+  equipment     String
+  daysPerWeek   Int
+  notes         String?
+
+  tokensCharged Int
+  transactionId String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([coachSlug])
+  @@index([status])
 }

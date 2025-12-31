@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { calcCoachRequestTokens } from "@/lib/tokens";
 import { getUserBalance } from "@/lib/balance";
 import { prisma } from "@/lib/db";
+import coachesData from "@/coaches_seed_15.json";
 
 /**
  * Coach requests endpoint
@@ -21,6 +22,20 @@ interface CoachRequestBody {
   equipment: string;
   daysPerWeek: number;
   notes?: string;
+}
+
+// Helper to get coach snapshot from seed data
+function getCoachSnapshot(coachSlug: string, coachId: string) {
+  if (!Array.isArray(coachesData)) return null;
+  return coachesData.find(
+    (c) => (c.slug && c.slug === coachSlug) || (c.id && c.id === coachId)
+  ) as
+    | {
+        name?: string;
+        avatar?: string;
+      }
+    | undefined
+    | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -74,7 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Deduct tokens immediately
-    await prisma.transaction.create({
+    const tx = await prisma.transaction.create({
       data: {
         userId: session.user.id,
         type: "spend",
@@ -89,34 +104,34 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
 
-    // TODO: Save to database when DB is ready
-    // For now, stub the response
-    const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    // In the future, this would be:
-    // const coachRequest = await prisma.coachRequest.create({
-    //   data: {
-    //     userId: session.user.id,
-    //     coachId: body.coachId,
-    //     coachSlug: body.coachSlug,
-    //     goal: body.goal,
-    //     level: body.level,
-    //     trainingType: body.trainingType,
-    //     equipment: body.equipment,
-    //     daysPerWeek: body.daysPerWeek,
-    //     notes: body.notes || null,
-    //     status: "pending",
-    //     tokensCharged: costBreakdown.total,
-    //     transactionId: tx.id,
-    //   },
-    // });
+    // Persist coach request
+    const coach = getCoachSnapshot(body.coachSlug, body.coachId);
+    const coachRequest = await prisma.coachRequest.create({
+      data: {
+        userId: session.user.id,
+        coachId: body.coachId,
+        coachSlug: body.coachSlug,
+        coachName: coach?.name ?? null,
+        coachAvatar: coach?.avatar ?? null,
+        goal: body.goal,
+        level: body.level,
+        trainingType: body.trainingType,
+        equipment: body.equipment,
+        daysPerWeek: body.daysPerWeek,
+        notes: body.notes || null,
+        status: "pending",
+        tokensCharged: costBreakdown.total,
+        transactionId: tx.id,
+      },
+    });
 
     // Get updated balance
     const newBalance = await getUserBalance(session.user.id);
 
     return NextResponse.json({
       success: true,
-      requestId,
+      requestId: coachRequest.id,
+      status: coachRequest.status,
       message: "Request received",
       tokensCharged: costBreakdown.total,
       newBalance,
@@ -125,6 +140,44 @@ export async function POST(request: NextRequest) {
     console.error("Error creating coach request:", error);
     return NextResponse.json(
       { error: "Failed to create coach request" },
+      { status: 500 }
+    );
+  }
+}
+
+// GET /api/coach-requests — list current user requests (max 50, newest first)
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const items = await prisma.coachRequest.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        coachSlug: true,
+        coachName: true,
+        coachAvatar: true,
+        goal: true,
+        level: true,
+        trainingType: true,
+        equipment: true,
+        daysPerWeek: true,
+        tokensCharged: true,
+      },
+    });
+
+    return NextResponse.json({ ok: true, items });
+  } catch (error) {
+    console.error("Error listing coach requests:", error);
+    return NextResponse.json(
+      { error: "Failed to list coach requests" },
       { status: 500 }
     );
   }

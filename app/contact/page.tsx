@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -8,17 +8,7 @@ import { motion, type Variants } from "framer-motion";
 import { Mail, Phone, MapPin, Copy, Check } from "lucide-react";
 import SiteHeader from "@/components/site-header";
 import SiteFooter from "@/components/site-footer";
-import {
-  Container,
-  H1,
-  H2,
-  Paragraph,
-  Button,
-  Card,
-  ToastContainer,
-  type Toast,
-  type ToastType,
-} from "@/components/ui";
+import { Container, H1, H2, Paragraph, Button, Card } from "@/components/ui";
 import { useCurrencyStore } from "@/lib/stores/currency-store";
 import { fadeIn, cardHoverLift } from "@/lib/animations";
 import { THEME } from "@/lib/theme";
@@ -34,7 +24,6 @@ export default function ContactPage() {
   const [balance, setBalance] = useState(0);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
   const [copiedAddress, setCopiedAddress] = useState(false);
 
   // Determine region from currency
@@ -105,26 +94,15 @@ export default function ContactPage() {
     useCurrencyStore.getState().setCurrency(currencyMap[newRegion]);
   };
 
-  // Toast helpers
-  const addToast = (type: ToastType, title: string, message?: string, duration?: number) => {
-    const id = Math.random().toString(36).substr(2, 9);
-    setToasts((prev) => [...prev, { id, type, title, message, duration }]);
-  };
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
-
   // Copy address to clipboard
   const copyAddress = async () => {
     const address = "20 Wenlock Road, London, England, N1 7GU";
     try {
       await navigator.clipboard.writeText(address);
       setCopiedAddress(true);
-      addToast("success", "Copied", undefined, 2000);
       setTimeout(() => setCopiedAddress(false), 2000);
     } catch {
-      addToast("error", "Failed to copy", "Please try again", 3000);
+      // swallow; copy failure is non-critical
     }
   };
 
@@ -313,7 +291,9 @@ export default function ContactPage() {
               <div className="max-w-2xl mx-auto">
                 <H2 className="mb-6 text-center">Send a message</H2>
                 <Card>
-                  <ContactForm />
+                  <Suspense fallback={null}>
+                    <ContactForm />
+                  </Suspense>
                 </Card>
               </div>
             </motion.div>
@@ -356,7 +336,6 @@ export default function ContactPage() {
       </main>
 
       <SiteFooter onNavigate={handleNavigate} />
-      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   );
 }

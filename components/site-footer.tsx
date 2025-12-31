@@ -1,17 +1,23 @@
+ "use client";
+
+import { useRouter } from "next/navigation";
 import { THEME } from "@/lib/theme";
 import Image from "next/image";
 import Link from "next/link";
+import type { Route } from "next";
 
 interface SiteFooterProps {
   onNavigate?: (page: string) => void;
 }
 
 export default function SiteFooter({ onNavigate }: SiteFooterProps) {
+  const router = useRouter();
+
   const handleNavigate = (page: string) => {
     if (onNavigate) {
       onNavigate(page);
     } else {
-      window.location.href = `/${page}`;
+      router.push(`/${page}` as Route);
     }
   };
 

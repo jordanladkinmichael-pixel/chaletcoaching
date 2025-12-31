@@ -351,7 +351,7 @@ function SupportPageContent() {
                   How it works
                 </Link>
                 <Link
-                  href="/contact"
+                  href="/contact?topic=Tokens%20and%20billing"
                   className="opacity-70 hover:opacity-100 transition-opacity underline"
                 >
                   Contact us
@@ -462,7 +462,7 @@ function SupportPageContent() {
                     Try different keywords or browse by topic.
                   </Paragraph>
                   <Button variant="primary" asChild>
-                    <Link href="/contact">Contact support</Link>
+                    <Link href="/contact?topic=Other%20%2F%20Support">Contact support</Link>
                   </Button>
                 </Card>
               ) : (
@@ -593,7 +593,7 @@ function SupportPageContent() {
                   <Link href="/contact">Contact support</Link>
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link href="/contact?topic=issue">Report an issue</Link>
+                  <Link href="/contact?topic=Other%20%2F%20Support">Report an issue</Link>
                 </Button>
               </div>
 
